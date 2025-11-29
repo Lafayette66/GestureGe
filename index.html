@@ -9,7 +9,7 @@
         :root {
             --primary: #007bff;
             --surface: #ffffff;
-            --background: #f0f2f5;
+            --background: #000000;
             --text-main: #202124;
             --text-secondary: #5f6368;
         }
@@ -18,15 +18,15 @@
             margin: 0;
             padding: 0;
             font-family: 'Roboto', sans-serif;
-            background: #000; /* Black background for video */
+            background: var(--background);
             color: var(--text-main);
             height: 100vh;
             width: 100vw;
             overflow: hidden;
-            position: relative; /* For absolute positioning of children */
+            position: relative;
         }
 
-        /* Camera Container - Now Full Screen */
+        /* Camera Container - Full Screen */
         .camera-container {
             position: absolute;
             top: 0;
@@ -43,8 +43,8 @@
             position: absolute;
             width: 100%;
             height: 100%;
-            object-fit: cover; /* Ensures video fills screen without stretching */
-            transform: scaleX(-1); /* Mirror effect */
+            object-fit: cover;
+            transform: scaleX(-1);
         }
 
         canvas {
@@ -52,7 +52,7 @@
             width: 100%;
             height: 100%;
             pointer-events: none;
-            transform: scaleX(-1); /* Mirror match video */
+            transform: scaleX(-1);
             object-fit: cover;
         }
 
@@ -63,7 +63,7 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0,0,0,0.8);
+            background: rgba(0,0,0,0.85);
             display: flex;
             flex-direction: column;
             justify-content: center;
@@ -140,12 +140,12 @@
             align-items: center;
             text-align: center;
             transition: opacity 0.3s ease;
-            max-height: 40vh; /* Don't take up too much screen */
+            max-height: 40vh;
             overflow-y: auto;
         }
 
         .gesture-icon {
-            font-size: 40px; /* Slightly smaller for mobile overlay */
+            font-size: 40px;
             margin-bottom: 5px;
             height: 50px;
         }
@@ -176,7 +176,7 @@
         /* Floating Label on Camera */
         .floating-label {
             position: absolute;
-            top: 50%; /* Moved to center screen */
+            top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
             background: rgba(0, 0, 0, 0.6);
@@ -189,6 +189,13 @@
             z-index: 4;
             display: none; 
             pointer-events: none;
+        }
+        
+        #error_msg {
+            color: #ff6b6b;
+            font-size: 12px;
+            margin-top: 10px;
+            max-width: 80%;
         }
     </style>
 </head>
@@ -206,7 +213,8 @@
         <!-- Loading / Start Overlay -->
         <div id="loading_overlay" class="overlay">
             <div class="spinner"></div>
-            <p id="status_text">Loading AI Model...</p>
+            <p id="status_text">Initializing AI...</p>
+            <div id="error_msg"></div>
             <button id="enable_cam_btn" style="display:none;">Enable Camera</button>
         </div>
     </div>
@@ -227,48 +235,16 @@
             GestureRecognizer,
             FilesetResolver,
             DrawingUtils
-        } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3";
+        } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14";
 
         const video = document.getElementById("webcam");
         const canvasElement = document.getElementById("output_canvas");
         const canvasCtx = canvasElement.getContext("2d");
         const overlay = document.getElementById("loading_overlay");
         const statusText = document.getElementById("status_text");
+        const errorMsg = document.getElementById("error_msg");
         const enableBtn = document.getElementById("enable_cam_btn");
         const fullscreenBtn = document.getElementById("fullscreen_btn");
-        
-        <!-- Loading / Start Overlay -->
-        <div id="loading_overlay" class="overlay">
-            <div class="spinner"></div>
-            <p id="status_text">Loading AI Model...</p>
-            <button id="enable_cam_btn" style="display:none;">Enable Camera</button>
-        </div>
-    </div>
-
-    <!-- Info Panel -->
-    <div class="info-panel">
-        <div id="icon_display" class="gesture-icon">👋</div>
-        <h2 id="title_display" class="gesture-title">Waiting for Hand...</h2>
-        <p id="desc_display" class="gesture-desc">
-            Place your hand in front of the camera. The AI will analyze your gesture and explain its meaning here.
-        </p>
-        <div id="confidence_display" class="confidence-meter">Confidence: 0%</div>
-    </div>
-
-    <!-- MediaPipe Import -->
-    <script type="module">
-        import {
-            GestureRecognizer,
-            FilesetResolver,
-            DrawingUtils
-        } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3";
-
-        const video = document.getElementById("webcam");
-        const canvasElement = document.getElementById("output_canvas");
-        const canvasCtx = canvasElement.getContext("2d");
-        const overlay = document.getElementById("loading_overlay");
-        const statusText = document.getElementById("status_text");
-        const enableBtn = document.getElementById("enable_cam_btn");
         
         // UI Elements
         const titleDisplay = document.getElementById("title_display");
@@ -342,26 +318,32 @@
         // 1. Initialize MediaPipe Gesture Recognizer
         const createGestureRecognizer = async () => {
             try {
+                statusText.innerText = "Loading WASM Files...";
                 const vision = await FilesetResolver.forVisionTasks(
-                    "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/wasm"
+                    "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm"
                 );
                 
+                statusText.innerText = "Loading AI Model...";
                 gestureRecognizer = await GestureRecognizer.createFromOptions(vision, {
                     baseOptions: {
                         modelAssetPath:
                             "https://storage.googleapis.com/mediapipe-models/gesture_recognizer/gesture_recognizer/float16/1/gesture_recognizer.task",
-                        delegate: "GPU"
+                        // REMOVED explicit GPU delegate to prevent hanging on some Android devices
+                        // delegate: "GPU" 
                     },
                     runningMode: runningMode,
-                    numHands: 1 // Optimize for speed on mobile
+                    numHands: 1
                 });
                 
-                statusText.innerText = "AI Ready. Start Camera?";
+                statusText.innerText = "AI Ready!";
                 overlay.querySelector(".spinner").style.display = "none";
                 enableBtn.style.display = "inline-block";
                 
             } catch (error) {
-                statusText.innerText = "Error loading AI: " + error.message;
+                overlay.querySelector(".spinner").style.borderTopColor = "red";
+                overlay.querySelector(".spinner").style.animation = "none";
+                statusText.innerText = "Failed to load AI";
+                errorMsg.innerText = error.message;
                 console.error(error);
             }
         };
@@ -379,7 +361,7 @@
             const constraints = {
                 video: {
                     facingMode: "user", // Front camera
-                    width: { ideal: 1280 }, // Higher res for full screen
+                    width: { ideal: 1280 },
                     height: { ideal: 720 }
                 }
             };
@@ -405,12 +387,10 @@
             }
 
             // Resize canvas to match video stream (important for full screen)
-            // We use clientWidth/Height to match the actual CSS display size
             if (video.videoWidth > 0 && video.videoHeight > 0) {
                 const displayWidth = video.clientWidth;
                 const displayHeight = video.clientHeight;
 
-                // Match canvas to the visible size of the video element
                 if (canvasElement.width !== displayWidth || canvasElement.height !== displayHeight) {
                      canvasElement.width = displayWidth;
                      canvasElement.height = displayHeight;
@@ -426,7 +406,6 @@
                     canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
                     
                     if (results.landmarks) {
-                        // Draw skeletal lines
                         const drawingUtils = new DrawingUtils(canvasCtx);
                         for (const landmarks of results.landmarks) {
                             drawingUtils.drawConnectors(
@@ -442,12 +421,10 @@
                         }
                     }
 
-                    // Process Gestures
                     if (results.gestures.length > 0) {
                         const gesture = results.gestures[0][0];
                         const categoryName = gesture.categoryName;
                         const score = Math.round(gesture.score * 100);
-
                         updateUI(categoryName, score);
                     } else {
                         updateUI("None", 0);
@@ -465,7 +442,6 @@
         let currentGesture = "";
         
         function updateUI(category, score) {
-            // Debounce slightly or just update if changed
             if (category === currentGesture && category !== "None") {
                 confDisplay.innerText = `Confidence: ${score}%`;
                 return;
@@ -479,7 +455,6 @@
             iconDisplay.innerText = data.icon;
             confDisplay.innerText = score > 0 ? `Confidence: ${score}%` : "";
             
-            // Update floating label on video
             if (category !== "None") {
                 floatLabel.style.display = "block";
                 floatLabel.innerText = `${data.title} ${data.icon}`;
@@ -487,7 +462,6 @@
                 floatLabel.style.display = "none";
             }
         }
-
     </script>
 </body>
 </html>
