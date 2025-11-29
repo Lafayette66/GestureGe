@@ -18,21 +18,22 @@
             margin: 0;
             padding: 0;
             font-family: 'Roboto', sans-serif;
-            background: var(--background);
+            background: #000; /* Black background for video */
             color: var(--text-main);
             height: 100vh;
-            display: flex;
-            flex-direction: column;
+            width: 100vw;
             overflow: hidden;
+            position: relative; /* For absolute positioning of children */
         }
 
-        /* Camera Container */
+        /* Camera Container - Now Full Screen */
         .camera-container {
-            position: relative;
+            position: absolute;
+            top: 0;
+            left: 0;
             width: 100%;
-            height: 60vh; /* Takes up top 60% of screen */
-            background: #000;
-            overflow: hidden;
+            height: 100%;
+            z-index: 1;
             display: flex;
             justify-content: center;
             align-items: center;
@@ -42,7 +43,7 @@
             position: absolute;
             width: 100%;
             height: 100%;
-            object-fit: cover;
+            object-fit: cover; /* Ensures video fills screen without stretching */
             transform: scaleX(-1); /* Mirror effect */
         }
 
@@ -52,6 +53,7 @@
             height: 100%;
             pointer-events: none;
             transform: scaleX(-1); /* Mirror match video */
+            object-fit: cover;
         }
 
         /* Overlay for loading state */
@@ -66,7 +68,7 @@
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            z-index: 10;
+            z-index: 20;
             color: white;
             text-align: center;
             padding: 20px;
@@ -101,71 +103,92 @@
             transform: scale(0.98);
         }
 
-        button:disabled {
-            background: #ccc;
-            cursor: not-allowed;
+        /* Fullscreen Toggle Button */
+        #fullscreen_btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 15;
+            background: rgba(0, 0, 0, 0.5);
+            color: white;
+            border-radius: 50%;
+            width: 48px;
+            height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+            font-size: 24px;
+            border: 1px solid rgba(255,255,255,0.3);
         }
 
-        /* Info Card Area */
+        /* Info Card Area - Floating Overlay */
         .info-panel {
-            flex: 1;
-            background: var(--surface);
-            border-top-left-radius: 24px;
-            border-top-right-radius: 24px;
-            padding: 24px;
-            margin-top: -20px; /* Overlap camera slightly */
-            z-index: 5;
-            box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
-            overflow-y: auto;
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border-radius: 24px;
+            padding: 20px;
+            z-index: 10;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
             display: flex;
             flex-direction: column;
             align-items: center;
             text-align: center;
+            transition: opacity 0.3s ease;
+            max-height: 40vh; /* Don't take up too much screen */
+            overflow-y: auto;
         }
 
         .gesture-icon {
-            font-size: 48px;
-            margin-bottom: 10px;
-            height: 60px;
+            font-size: 40px; /* Slightly smaller for mobile overlay */
+            margin-bottom: 5px;
+            height: 50px;
         }
 
         .gesture-title {
-            font-size: 24px;
+            font-size: 20px;
             font-weight: 700;
-            margin: 0 0 10px 0;
+            margin: 0 0 5px 0;
             color: var(--primary);
         }
 
         .gesture-desc {
-            font-size: 16px;
-            line-height: 1.5;
+            font-size: 14px;
+            line-height: 1.4;
             color: var(--text-secondary);
-            max-width: 500px;
+            margin: 0;
         }
 
         .confidence-meter {
-            margin-top: 15px;
-            font-size: 12px;
-            color: #888;
-            background: #eee;
-            padding: 4px 12px;
-            border-radius: 12px;
+            margin-top: 10px;
+            font-size: 11px;
+            color: #666;
+            background: rgba(0,0,0,0.05);
+            padding: 3px 10px;
+            border-radius: 10px;
         }
 
         /* Floating Label on Camera */
         .floating-label {
             position: absolute;
-            bottom: 30px;
+            top: 50%; /* Moved to center screen */
             left: 50%;
-            transform: translateX(-50%);
+            transform: translate(-50%, -50%);
             background: rgba(0, 0, 0, 0.6);
             color: white;
-            padding: 8px 16px;
-            border-radius: 20px;
-            font-size: 14px;
+            padding: 12px 24px;
+            border-radius: 30px;
+            font-size: 24px;
+            font-weight: bold;
             backdrop-filter: blur(4px);
             z-index: 4;
-            display: none; /* Hidden until gesture found */
+            display: none; 
+            pointer-events: none;
         }
     </style>
 </head>
@@ -176,6 +199,43 @@
         <video id="webcam" playsinline autoplay></video>
         <canvas id="output_canvas"></canvas>
         <div id="gesture_label" class="floating-label">None</div>
+        
+        <!-- Fullscreen Button -->
+        <button id="fullscreen_btn" title="Toggle Fullscreen">⛶</button>
+
+        <!-- Loading / Start Overlay -->
+        <div id="loading_overlay" class="overlay">
+            <div class="spinner"></div>
+            <p id="status_text">Loading AI Model...</p>
+            <button id="enable_cam_btn" style="display:none;">Enable Camera</button>
+        </div>
+    </div>
+
+    <!-- Info Panel -->
+    <div class="info-panel">
+        <div id="icon_display" class="gesture-icon">👋</div>
+        <h2 id="title_display" class="gesture-title">Waiting for Hand...</h2>
+        <p id="desc_display" class="gesture-desc">
+            Place your hand in front of the camera. The AI will analyze your gesture.
+        </p>
+        <div id="confidence_display" class="confidence-meter">Confidence: 0%</div>
+    </div>
+
+    <!-- MediaPipe Import -->
+    <script type="module">
+        import {
+            GestureRecognizer,
+            FilesetResolver,
+            DrawingUtils
+        } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3";
+
+        const video = document.getElementById("webcam");
+        const canvasElement = document.getElementById("output_canvas");
+        const canvasCtx = canvasElement.getContext("2d");
+        const overlay = document.getElementById("loading_overlay");
+        const statusText = document.getElementById("status_text");
+        const enableBtn = document.getElementById("enable_cam_btn");
+        const fullscreenBtn = document.getElementById("fullscreen_btn");
         
         <!-- Loading / Start Overlay -->
         <div id="loading_overlay" class="overlay">
@@ -232,39 +292,52 @@
             "Closed_Fist": {
                 icon: "✊",
                 title: "Closed Fist",
-                desc: "A symbol of solidarity, strength, or defiance. In rock-paper-scissors, this is 'Rock'. It represents holding onto something tightly."
+                desc: "A symbol of solidarity, strength, or defiance. In rock-paper-scissors, this is 'Rock'."
             },
             "Open_Palm": {
                 icon: "✋",
                 title: "Open Palm",
-                desc: "A universal sign of greeting, stopping, or openness. It shows you have nothing to hide. In rock-paper-scissors, this is 'Paper'."
+                desc: "A universal sign of greeting, stopping, or openness. In rock-paper-scissors, this is 'Paper'."
             },
             "Pointing_Up": {
                 icon: "☝️",
                 title: "Pointing Up",
-                desc: "Used to indicate direction, ask a question, or emphasize a point. It draws attention to something important above."
+                desc: "Used to indicate direction, ask a question, or emphasize a point."
             },
             "Thumb_Down": {
                 icon: "👎",
                 title: "Thumbs Down",
-                desc: "A gesture of disapproval or disagreement. Historically associated with voting against something in Roman gladiator games."
+                desc: "A gesture of disapproval or disagreement."
             },
             "Thumb_Up": {
                 icon: "👍",
                 title: "Thumbs Up",
-                desc: "The universal sign for 'Good', 'Okay', or approval. It indicates success or agreement with a situation."
+                desc: "The universal sign for 'Good', 'Okay', or approval."
             },
             "Victory": {
                 icon: "✌️",
                 title: "Victory / Peace",
-                desc: "The 'V' sign. Depending on context, it means Victory or Peace. Popularized in the 1960s as a symbol of the counterculture."
+                desc: "The 'V' sign. Means Victory or Peace."
             },
             "ILoveYou": {
                 icon: "🤟",
                 title: "I Love You",
-                desc: "From American Sign Language (ASL). It combines the letters I, L, and Y using the pinky, index finger, and thumb."
+                desc: "From American Sign Language (ASL). Combines I, L, and Y."
             }
         };
+
+        // Fullscreen Logic
+        fullscreenBtn.addEventListener("click", () => {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(err => {
+                    console.log(`Error attempting to enable fullscreen: ${err.message}`);
+                });
+            } else {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                }
+            }
+        });
 
         // 1. Initialize MediaPipe Gesture Recognizer
         const createGestureRecognizer = async () => {
@@ -306,8 +379,8 @@
             const constraints = {
                 video: {
                     facingMode: "user", // Front camera
-                    width: { ideal: 640 },
-                    height: { ideal: 480 }
+                    width: { ideal: 1280 }, // Higher res for full screen
+                    height: { ideal: 720 }
                 }
             };
 
@@ -331,12 +404,18 @@
                 await gestureRecognizer.setOptions({ runningMode: "VIDEO" });
             }
 
-            // Resize canvas to match video stream
+            // Resize canvas to match video stream (important for full screen)
+            // We use clientWidth/Height to match the actual CSS display size
             if (video.videoWidth > 0 && video.videoHeight > 0) {
-                canvasElement.width = video.videoWidth;
-                canvasElement.height = video.videoHeight;
+                const displayWidth = video.clientWidth;
+                const displayHeight = video.clientHeight;
+
+                // Match canvas to the visible size of the video element
+                if (canvasElement.width !== displayWidth || canvasElement.height !== displayHeight) {
+                     canvasElement.width = displayWidth;
+                     canvasElement.height = displayHeight;
+                }
                 
-                // Mirror logic is handled in CSS, so we draw normally here
                 let nowInMs = Date.now();
                 if (video.currentTime !== lastVideoTime) {
                     lastVideoTime = video.currentTime;
