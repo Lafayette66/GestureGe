@@ -163,33 +163,6 @@
             color: var(--text-secondary);
             margin: 0;
         }
-
-        .confidence-meter {
-            margin-top: 10px;
-            font-size: 11px;
-            color: #666;
-            background: rgba(0,0,0,0.05);
-            padding: 3px 10px;
-            border-radius: 10px;
-        }
-
-        /* Floating Label on Camera */
-        .floating-label {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: rgba(0, 0, 0, 0.6);
-            color: white;
-            padding: 12px 24px;
-            border-radius: 30px;
-            font-size: 24px;
-            font-weight: bold;
-            backdrop-filter: blur(4px);
-            z-index: 4;
-            display: none; 
-            pointer-events: none;
-        }
         
         #error_msg {
             color: #ff6b6b;
@@ -206,7 +179,7 @@
         <!-- Added muted attribute which is often required for Android autoplay -->
         <video id="webcam" playsinline autoplay muted></video>
         <canvas id="output_canvas"></canvas>
-        <div id="gesture_label" class="floating-label">None</div>
+        <!-- Floating label removed -->
         
         <!-- Fullscreen Button -->
         <button id="fullscreen_btn" title="Toggle Fullscreen">⛶</button>
@@ -227,7 +200,7 @@
         <p id="desc_display" class="gesture-desc">
             Place your hand in front of the camera. The AI will analyze your gesture.
         </p>
-        <div id="confidence_display" class="confidence-meter">Confidence: 0%</div>
+        <!-- Confidence meter removed -->
     </div>
 
     <!-- MediaPipe Import -->
@@ -251,8 +224,7 @@
         const titleDisplay = document.getElementById("title_display");
         const descDisplay = document.getElementById("desc_display");
         const iconDisplay = document.getElementById("icon_display");
-        const confDisplay = document.getElementById("confidence_display");
-        const floatLabel = document.getElementById("gesture_label");
+        // Removed confDisplay and floatLabel
 
         let gestureRecognizer;
         let runningMode = "VIDEO";
@@ -429,10 +401,9 @@
                     if (results.gestures.length > 0) {
                         const gesture = results.gestures[0][0];
                         const categoryName = gesture.categoryName;
-                        const score = Math.round(gesture.score * 100);
-                        updateUI(categoryName, score);
+                        updateUI(categoryName);
                     } else {
-                        updateUI("None", 0);
+                        updateUI("None");
                     }
                     canvasCtx.restore();
                 }
@@ -446,9 +417,8 @@
         // 4. Update UI with Data
         let currentGesture = "";
         
-        function updateUI(category, score) {
+        function updateUI(category) {
             if (category === currentGesture && category !== "None") {
-                confDisplay.innerText = `Confidence: ${score}%`;
                 return;
             }
             
@@ -458,14 +428,6 @@
             titleDisplay.innerText = data.title;
             descDisplay.innerText = data.desc;
             iconDisplay.innerText = data.icon;
-            confDisplay.innerText = score > 0 ? `Confidence: ${score}%` : "";
-            
-            if (category !== "None") {
-                floatLabel.style.display = "block";
-                floatLabel.innerText = `${data.title} ${data.icon}`;
-            } else {
-                floatLabel.style.display = "none";
-            }
         }
     </script>
 </body>
