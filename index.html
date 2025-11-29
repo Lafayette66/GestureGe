@@ -203,7 +203,8 @@
 
     <!-- Camera View -->
     <div class="camera-container">
-        <video id="webcam" playsinline autoplay></video>
+        <!-- Added muted attribute which is often required for Android autoplay -->
+        <video id="webcam" playsinline autoplay muted></video>
         <canvas id="output_canvas"></canvas>
         <div id="gesture_label" class="floating-label">None</div>
         
@@ -318,23 +319,26 @@
         // 1. Initialize MediaPipe Gesture Recognizer
         const createGestureRecognizer = async () => {
             try {
+                console.log("Starting model load...");
                 statusText.innerText = "Loading WASM Files...";
                 const vision = await FilesetResolver.forVisionTasks(
                     "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm"
                 );
                 
                 statusText.innerText = "Loading AI Model...";
+                console.log("Creating gesture recognizer...");
+                
                 gestureRecognizer = await GestureRecognizer.createFromOptions(vision, {
                     baseOptions: {
                         modelAssetPath:
                             "https://storage.googleapis.com/mediapipe-models/gesture_recognizer/gesture_recognizer/float16/1/gesture_recognizer.task",
-                        // REMOVED explicit GPU delegate to prevent hanging on some Android devices
-                        // delegate: "GPU" 
+                        delegate: "CPU" // FORCE CPU to avoid hanging on GPU detection
                     },
                     runningMode: runningMode,
                     numHands: 1
                 });
                 
+                console.log("Model loaded successfully");
                 statusText.innerText = "AI Ready!";
                 overlay.querySelector(".spinner").style.display = "none";
                 enableBtn.style.display = "inline-block";
@@ -344,7 +348,7 @@
                 overlay.querySelector(".spinner").style.animation = "none";
                 statusText.innerText = "Failed to load AI";
                 errorMsg.innerText = error.message;
-                console.error(error);
+                console.error("Model load error:", error);
             }
         };
 
@@ -371,9 +375,10 @@
                 video.addEventListener("loadeddata", predictWebcam);
                 overlay.style.display = "none";
                 isWebcamActive = true;
+                console.log("Camera started");
             }).catch((err) => {
-                console.error(err);
-                alert("Camera access denied or not supported. Please ensure you are running on HTTPS or localhost.");
+                console.error("Camera denied:", err);
+                alert("Camera access denied. Please ensure you are running on HTTPS or localhost and have granted permission.");
             });
         };
 
