@@ -43,7 +43,7 @@
             height: 100%;
             object-fit: cover;
             transform: scaleX(-1);
-            transition: filter 1s ease; /* Smooth dimming transition */
+            transition: filter 0.5s ease;
             filter: brightness(1) grayscale(0);
         }
 
@@ -124,9 +124,11 @@
             justify-content: center;
             font-size: 20px;
             border-radius: 50%;
+            background: rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.1);
         }
 
-        /* Floating Text Area - No Background */
+        /* Floating Text Area */
         .info-panel {
             position: absolute;
             bottom: 40px;
@@ -136,7 +138,7 @@
             max-width: 600px;
             z-index: 10;
             text-align: center;
-            pointer-events: none; /* Let clicks pass through */
+            pointer-events: none;
         }
 
         .gesture-icon {
@@ -168,7 +170,7 @@
             text-shadow: 0 2px 8px rgba(0,0,0,0.8);
             opacity: 0;
             transform: translateY(20px);
-            transition: all 0.5s ease 0.1s; /* Slight delay */
+            transition: all 0.5s ease 0.1s;
         }
         
         /* Active state for text animations */
@@ -177,6 +179,37 @@
         .info-panel.active .gesture-desc {
             opacity: 1;
             transform: translateY(0);
+        }
+
+        /* Idle Prompt Styling */
+        .idle-prompt {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            opacity: 0;
+            transition: opacity 0.5s ease;
+            pointer-events: none;
+            z-index: 8;
+        }
+
+        .idle-prompt.visible {
+            opacity: 1;
+        }
+
+        .idle-prompt h3 {
+            font-size: 24px;
+            font-weight: 300;
+            color: rgba(255, 255, 255, 0.9);
+            margin-bottom: 10px;
+            text-shadow: 0 2px 10px rgba(0,0,0,0.5);
+        }
+        
+        .idle-prompt p {
+            font-size: 14px;
+            color: rgba(255, 255, 255, 0.6);
+            font-weight: 300;
         }
 
         #error_msg {
@@ -195,6 +228,12 @@
         <canvas id="output_canvas"></canvas>
         
         <button id="fullscreen_btn" title="Toggle Fullscreen">⛶</button>
+        
+        <!-- Idle Prompt (Visible when no gesture) -->
+        <div id="idle_prompt" class="idle-prompt visible">
+            <h3>Try showing a gesture</h3>
+            <p>Peace • Thumbs Up • Open Palm • Fist</p>
+        </div>
 
         <!-- Loading Overlay -->
         <div id="loading_overlay" class="overlay">
@@ -228,6 +267,7 @@
         const enableBtn = document.getElementById("enable_cam_btn");
         const fullscreenBtn = document.getElementById("fullscreen_btn");
         const infoPanel = document.getElementById("info_panel");
+        const idlePrompt = document.getElementById("idle_prompt");
         
         // UI Elements
         const titleDisplay = document.getElementById("title_display");
@@ -238,7 +278,16 @@
         let runningMode = "VIDEO";
         let lastVideoTime = -1;
         let isWebcamActive = false;
-        let particles = []; // Array to store particles
+        let particles = []; 
+
+        // Manually defined connections to prevent crashes
+        const HAND_CONNECTIONS = [
+            [0, 1], [1, 2], [2, 3], [3, 4], 
+            [0, 5], [5, 6], [6, 7], [7, 8], 
+            [5, 9], [9, 10], [10, 11], [11, 12], 
+            [9, 13], [13, 14], [14, 15], [15, 16], 
+            [13, 17], [0, 17], [17, 18], [18, 19], [19, 20]
+        ];
 
         // Particle System Class
         class Particle {
@@ -247,20 +296,33 @@
                 this.y = y;
                 // Random drift velocity
                 this.vx = (Math.random() - 0.5) * 1.5;
-                this.vy = (Math.random() - 1.5) * 1.5; // Tendency to float up
+                this.vy = (Math.random() - 1.5) * 1.5; 
                 this.life = 1.0;
                 this.decay = Math.random() * 0.02 + 0.01;
-                // Beautiful ethereal colors (Cyan, Purple, White)
-                const hue = Math.random() > 0.5 ? 180 + Math.random() * 40 : 260 + Math.random() * 40;
-                this.color = `hsla(${hue}, 80%, 70%,`;
-                this.size = Math.random() * 3 + 1;
+                
+                // Color Palette
+                const rand = Math.random();
+                let colorBase;
+                
+                if (rand < 0.50) {
+                    colorBase = "254, 246, 227"; // #FEF6E3 Cream
+                } else if (rand < 0.70) {
+                    colorBase = "239, 148, 32";  // #EF9420 Orange
+                } else if (rand < 0.90) {
+                    colorBase = "245, 107, 153"; // #F56B99 Pink
+                } else {
+                    colorBase = "125, 166, 218"; // #7DA6DA Blue
+                }
+
+                this.color = `rgba(${colorBase},`;
+                this.size = Math.random() * 4 + 1;
             }
 
             update() {
                 this.x += this.vx;
                 this.y += this.vy;
                 this.life -= this.decay;
-                this.size *= 0.95; // Shrink over time
+                this.size *= 0.95; 
             }
 
             draw(ctx) {
@@ -273,11 +335,7 @@
 
         // Content Database
         const gestureData = {
-            "None": {
-                icon: "",
-                title: "",
-                desc: ""
-            },
+            "None": { icon: "", title: "", desc: "" },
             "Closed_Fist": {
                 icon: "✊",
                 title: "Strength",
@@ -319,12 +377,10 @@
         fullscreenBtn.addEventListener("click", () => {
             if (!document.fullscreenElement) {
                 document.documentElement.requestFullscreen().catch(err => {
-                    console.log(`Error attempting to enable fullscreen: ${err.message}`);
+                    console.log(`Error: ${err.message}`);
                 });
             } else {
-                if (document.exitFullscreen) {
-                    document.exitFullscreen();
-                }
+                if (document.exitFullscreen) document.exitFullscreen();
             }
         });
 
@@ -393,71 +449,95 @@
                 await gestureRecognizer.setOptions({ runningMode: "VIDEO" });
             }
 
-            if (video.videoWidth > 0 && video.videoHeight > 0) {
-                // Resize canvas if needed
-                const displayWidth = video.clientWidth;
-                const displayHeight = video.clientHeight;
-                if (canvasElement.width !== displayWidth || canvasElement.height !== displayHeight) {
-                     canvasElement.width = displayWidth;
-                     canvasElement.height = displayHeight;
-                }
-                
-                let nowInMs = Date.now();
-                if (video.currentTime !== lastVideoTime) {
-                    lastVideoTime = video.currentTime;
+            try {
+                if (video.videoWidth > 0 && video.videoHeight > 0) {
+                    const displayWidth = video.clientWidth;
+                    const displayHeight = video.clientHeight;
+                    if (canvasElement.width !== displayWidth || canvasElement.height !== displayHeight) {
+                        canvasElement.width = displayWidth;
+                        canvasElement.height = displayHeight;
+                    }
                     
-                    // Detect Gestures
-                    const results = gestureRecognizer.recognizeForVideo(video, nowInMs);
-
-                    // Clear Canvas for new frame
-                    canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
-                    
-                    // --- PARTICLE SYSTEM ---
-                    // 1. Spawn new particles if hands detected
-                    if (results.landmarks && results.landmarks.length > 0) {
-                        const landmarks = results.landmarks[0];
+                    let nowInMs = Date.now();
+                    if (video.currentTime !== lastVideoTime) {
+                        lastVideoTime = video.currentTime;
                         
-                        // Dim the video because we found a hand
-                        video.classList.add("dimmed");
+                        const results = gestureRecognizer.recognizeForVideo(video, nowInMs);
 
-                        // Spawn particles at every landmark
-                        // We use a simplified loop to spawn fewer particles for performance
-                        for (let i = 0; i < landmarks.length; i++) {
-                            // Only spawn random particles (not every frame on every point to avoid clutter)
-                            if (Math.random() > 0.7) { 
+                        canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+                        
+                        // --- DRAWING LOGIC ---
+                        if (results.landmarks && results.landmarks.length > 0) {
+                            const landmarks = results.landmarks[0];
+                            
+                            video.classList.add("dimmed");
+
+                            // 1. Draw Skeleton Lines (#FEF6E3)
+                            canvasCtx.save();
+                            canvasCtx.strokeStyle = "#FEF6E3";
+                            canvasCtx.lineWidth = 2;
+                            canvasCtx.lineCap = "round";
+                            canvasCtx.globalAlpha = 0.6; 
+
+                            // Manual loop over constants (prevents crash)
+                            for (const connection of HAND_CONNECTIONS) {
+                                const start = landmarks[connection[0]];
+                                const end = landmarks[connection[1]];
+                                if (start && end) {
+                                    canvasCtx.beginPath();
+                                    canvasCtx.moveTo(start.x * canvasElement.width, start.y * canvasElement.height);
+                                    canvasCtx.lineTo(end.x * canvasElement.width, end.y * canvasElement.height);
+                                    canvasCtx.stroke();
+                                }
+                            }
+                            canvasCtx.restore();
+
+                            // 2. Draw Landmark Nodes & Spawn Particles
+                            for (let i = 0; i < landmarks.length; i++) {
                                 const x = landmarks[i].x * canvasElement.width;
                                 const y = landmarks[i].y * canvasElement.height;
-                                particles.push(new Particle(x, y));
+
+                                // Draw Node
+                                canvasCtx.beginPath();
+                                canvasCtx.arc(x, y, 3, 0, 2 * Math.PI);
+                                canvasCtx.fillStyle = "#FEF6E3";
+                                canvasCtx.fill();
+
+                                // Spawn Particles
+                                if (Math.random() > 0.75) { 
+                                    particles.push(new Particle(x, y));
+                                }
                             }
+                        } else {
+                            video.classList.remove("dimmed");
                         }
-                    } else {
-                        // Undim video if no hand
-                        video.classList.remove("dimmed");
-                    }
 
-                    // 2. Update and Draw all particles
-                    // Use 'lighter' blend mode for glowing effect
-                    canvasCtx.globalCompositeOperation = 'lighter'; 
-                    
-                    for (let i = particles.length - 1; i >= 0; i--) {
-                        particles[i].update();
-                        particles[i].draw(canvasCtx);
-                        
-                        if (particles[i].life <= 0) {
-                            particles.splice(i, 1);
+                        // 3. Update/Draw Particles
+                        canvasCtx.globalCompositeOperation = 'lighter'; 
+                        for (let i = particles.length - 1; i >= 0; i--) {
+                            particles[i].update();
+                            particles[i].draw(canvasCtx);
+                            if (particles[i].life <= 0) particles.splice(i, 1);
                         }
-                    }
-                    
-                    canvasCtx.globalCompositeOperation = 'source-over'; // Reset blend mode
+                        canvasCtx.globalCompositeOperation = 'source-over'; 
 
-                    // --- UI UPDATE ---
-                    if (results.gestures.length > 0) {
-                        const gesture = results.gestures[0][0];
-                        updateUI(gesture.categoryName);
-                    } else {
-                        updateUI("None");
+                        // --- UI UPDATE ---
+                        if (results.gestures.length > 0) {
+                            const gesture = results.gestures[0][0];
+                            const score = gesture.score;
+                            // Only update if confident enough to reduce jitter
+                            if (score > 0.3) { 
+                                updateUI(gesture.categoryName);
+                            } else {
+                                updateUI("None");
+                            }
+                        } else {
+                            updateUI("None");
+                        }
                     }
                 }
+            } catch (err) {
+                console.error("Frame processing error:", err);
             }
 
             if (isWebcamActive) {
@@ -469,7 +549,13 @@
         let currentGesture = "None";
         
         function updateUI(category) {
-            // Only update if changed
+            // Update Idle Prompt Visibility
+            if (category === "None") {
+                idlePrompt.classList.add("visible");
+            } else {
+                idlePrompt.classList.remove("visible");
+            }
+
             if (category === currentGesture) return;
             currentGesture = category;
 
