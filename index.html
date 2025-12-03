@@ -143,6 +143,9 @@
             z-index: 10;
             text-align: center;
             pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
         }
 
         .gesture-icon {
@@ -195,11 +198,44 @@
             transition: all 1s ease 0.2s;
         }
         
+        /* CTA Arrow & Text */
+        .cta-container {
+            margin-top: 20px;
+            opacity: 0;
+            transform: translateY(20px);
+            transition: all 1s ease 0.3s;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .cta-arrow {
+            font-size: 24px;
+            color: #F56B99;
+            animation: bounce 1.5s infinite;
+        }
+
+        .cta-text {
+            font-family: 'Montserrat', sans-serif;
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            color: rgba(255, 255, 255, 0.9);
+            margin-top: 5px;
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-5px); }
+        }
+        
         /* Active state for text animations */
         .info-panel.active .gesture-icon,
         .info-panel.active .gesture-title,
         .info-panel.active .gesture-origin,
-        .info-panel.active .gesture-desc {
+        .info-panel.active .gesture-desc,
+        .info-panel.active .cta-container {
             opacity: 1;
             transform: translateY(0);
         }
@@ -208,7 +244,7 @@
         .idle-prompt {
             position: absolute;
             top: 35%; 
-            left: 35%;
+            left: 26%; /* Moved left from 35% */
             transform: translate(-50%, -50%);
             text-align: center;
             opacity: 0;
@@ -313,6 +349,11 @@
         <!-- New Origin Subtitle -->
         <h3 id="origin_display" class="gesture-origin"></h3>
         <p id="desc_display" class="gesture-desc"></p>
+        <!-- New CTA -->
+        <div class="cta-container">
+            <div class="cta-arrow">↑</div>
+            <div class="cta-text">Check our map for more info</div>
+        </div>
     </div>
 
     <!-- MediaPipe Import -->
@@ -446,12 +487,8 @@
                 origin: "USA",
                 desc: "Rooted in the 1839 U.S. abbreviation for 'all correct,' it signals approval. Today, it generally means agreement, though it carries offensive meanings in some regions."
             },
-            "Rock": {
-                icon: "🤘",
-                title: "Sign of the Horns",
-                origin: "Mediterranean",
-                desc: "Originally a ward against the 'evil eye,' it became a rock music staple in the 1970s. Today, it signifies energy, rebellion, and musical passion."
-            },
+            // REMOVED ROCK
+            // "Rock": { ... }, 
             "Three": {
                 icon: "3️⃣",
                 title: "Three",
@@ -633,22 +670,28 @@
                 return "OK";
             }
 
-            // 4. ROCK / HORNS
-            if (states.index && !states.middle && !states.ring && states.pinky) {
-                return "Rock";
-            }
+            // 4. ROCK / HORNS -- REMOVED for I LOVE YOU
+            // if (states.index && !states.middle && !states.ring && states.pinky) {
+            //     return "Rock";
+            // }
             
             // 5. SHAKA (Call Me)
             if (!states.index && !states.middle && !states.ring && states.pinky && states.thumb) {
                 return "Shaka";
             }
+
+             // 6. I LOVE YOU (ASL)
+             // Thumb, Index, Pinky UP. Middle, Ring DOWN.
+            if (states.thumb && states.index && !states.middle && !states.ring && states.pinky) {
+                return "ILoveYou";
+            }
             
-            // 6. FINGER GUN
+            // 7. FINGER GUN
             if (states.thumb && states.index && !states.middle && !states.ring && !states.pinky) {
                 return "Finger_Gun";
             }
             
-            // 7. FINGER CROSSED (Hope)
+            // 8. FINGER CROSSED (Hope)
             if (states.index && states.middle && !states.ring && !states.pinky) {
                 const tipDist = Math.hypot(indexTip.x - middleTip.x, indexTip.y - middleTip.y);
                 const pipDist = Math.hypot(landmarks[6].x - landmarks[10].x, landmarks[6].y - landmarks[10].y);
@@ -658,7 +701,7 @@
                 }
             }
 
-            // 8. NUMBERS (Three, Four)
+            // 9. NUMBERS (Three, Four)
             if (defaultCategory === "None" || defaultCategory === "Open_Palm") {
                 if (numFingersUp === 3) return "Three";
                 if (numFingersUp === 4 && !states.thumb) return "Four";
@@ -774,7 +817,7 @@
                 infoPanel.classList.remove("active");
             } else {
                 titleDisplay.innerText = data.title;
-                originDisplay.innerText = data.origin; // Update Origin
+                originDisplay.innerText = data.origin;
                 descDisplay.innerText = data.desc;
                 iconDisplay.innerText = data.icon;
                 infoPanel.classList.add("active");
