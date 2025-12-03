@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Hand Gesture AI</title>
     <!-- Standard Font for Body -->
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet">
     <!-- Custom Display Font for Titles -->
     <link rel="stylesheet" href="https://use.typekit.net/xvz5lzf.css">
     
@@ -150,7 +150,7 @@
             margin-bottom: 10px;
             text-shadow: 0 0 20px rgba(255,255,255,0.5);
             opacity: 0;
-            transition: opacity 1s ease; /* Slower transition */
+            transition: opacity 1s ease;
         }
 
         .gesture-title {
@@ -158,32 +158,47 @@
             font-weight: 400;
             font-style: normal;
             font-size: 42px;
-            margin: 0 0 10px 0;
+            margin: 0 0 5px 0; /* Reduced margin for subtitle */
             color: #fff;
             text-shadow: 0 2px 10px rgba(0,0,0,0.5);
             letter-spacing: 1px;
             opacity: 0;
             transform: translateY(20px);
-            transition: all 1s ease; /* Slower transition (1s) */
+            transition: all 1s ease;
+        }
+
+        /* New Origin Subtitle Style */
+        .gesture-origin {
+            font-family: 'Montserrat', sans-serif;
+            font-weight: 500;
+            font-size: 12px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: #F56B99; /* Matching the bubble color for accent */
+            margin: 0 0 15px 0;
+            opacity: 0;
+            transform: translateY(20px);
+            transition: all 1s ease 0.1s;
         }
 
         .gesture-desc {
-            font-family: "rockwell", sans-serif; /* Changed Font */
+            font-family: "rockwell", sans-serif;
             font-weight: 400;
             font-style: normal;
             font-size: 16px;
             line-height: 1.6;
-            color: rgba(255, 255, 255, 0.8);
+            color: rgba(255, 255, 255, 0.9);
             margin: 0;
             text-shadow: 0 2px 8px rgba(0,0,0,0.8);
             opacity: 0;
             transform: translateY(20px);
-            transition: all 1s ease 0.2s; /* Slower transition + delay */
+            transition: all 1s ease 0.2s;
         }
         
         /* Active state for text animations */
         .info-panel.active .gesture-icon,
         .info-panel.active .gesture-title,
+        .info-panel.active .gesture-origin,
         .info-panel.active .gesture-desc {
             opacity: 1;
             transform: translateY(0);
@@ -192,15 +207,14 @@
         /* Idle Prompt Styling */
         .idle-prompt {
             position: absolute;
-            top: 35%; /* Center a little to the top left */
-            left: 25%;
+            top: 35%; 
+            left: 35%;
             transform: translate(-50%, -50%);
             text-align: center;
             opacity: 0;
             transition: opacity 0.5s ease;
             pointer-events: none;
             z-index: 8;
-            /* Allow elements inside to position relative to this */
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -213,9 +227,9 @@
 
         .idle-prompt h1 {
             font-family: "p22-flw-exhibition", sans-serif;
-            font-weight: 700;
+            font-weight: 400;
             font-style: normal;
-            font-size: 90px; /* Twice as big */
+            font-size: 90px;
             color: rgba(255, 255, 255, 1);
             margin: 0;
             line-height: 1;
@@ -227,7 +241,7 @@
             font-family: "p22-flw-exhibition", sans-serif;
             font-weight: 400;
             font-style: normal;
-            font-size: 40px; /* Slightly bigger */
+            font-size: 40px;
             color: rgba(255, 255, 255, 0.9);
             margin: 0 0 10px 0;
             z-index: 2;
@@ -243,35 +257,17 @@
         }
 
         /* Pink Bubble Background */
-        .idle-bg-bubble {
-            position: absolute;
-            width: 300px;
-            height: 300px;
-            background-color: #F56B99;
-            border-radius: 50%;
-            z-index: 1; /* Behind text */
-            top: 30%;
-            left: 50%;
-            transform: translate(-15%, 0);
-            filter: blur(40px); /* Optional: softer look, remove blur if you want sharp edge */
-            opacity: 0.6;
-            pointer-events: none;
-        }
-
-        /* Sharper circle as requested "partially clipped" 
-           To clip it, we can rely on screen edges or use overflow on a container 
-           Here I'll make it a hard shape */
         .idle-bg-bubble-sharp {
             position: absolute;
-            width: 406px; /* Scaled to 60% of 560px */
-            height: 406px; /* Scaled to 60% of 560px */
+            width: 336px;
+            height: 336px;
             background-color: #F56B99;
             border-radius: 50%;
             z-index: 1; 
-            top: 15%; /* Moved up to 15% */
-            left: 15%; /* Moved left to 10% */
-            transform: translate(-40%, -40%); 
-            mix-blend-mode: screen; /* Nice blending */
+            top: 15%; 
+            left: 10%; 
+            transform: translate(-50%, -50%); 
+            mix-blend-mode: screen;
         }
 
         #error_msg {
@@ -314,6 +310,8 @@
     <div id="info_panel" class="info-panel">
         <div id="icon_display" class="gesture-icon"></div>
         <h2 id="title_display" class="gesture-title"></h2>
+        <!-- New Origin Subtitle -->
+        <h3 id="origin_display" class="gesture-origin"></h3>
         <p id="desc_display" class="gesture-desc"></p>
     </div>
 
@@ -337,26 +335,16 @@
         
         // UI Elements
         const titleDisplay = document.getElementById("title_display");
+        const originDisplay = document.getElementById("origin_display"); // New Element
         const descDisplay = document.getElementById("desc_display");
         const iconDisplay = document.getElementById("icon_display");
 
         let gestureRecognizer;
         let runningMode = "VIDEO";
+        let lastVideoTime = -1;
         let isWebcamActive = false;
-        let lastInferenceTime = 0;
-        let lastLandmarks = null;
+        let particles = []; 
 
-        // Optimization: Throttle AI inference to prevent overheating.
-        // 32ms ~= 30 FPS. This is smooth enough for human eyes but much cooler than 60+ FPS.
-        const INFERENCE_INTERVAL_MS = 32;
-
-        // Object Pool for Particles (Ring Buffer Pattern)
-        // Increased count for better visuals
-        const MAX_PARTICLES = 600;
-        const particlePool = [];
-        let poolIndex = 0;
-
-        // Manually defined connections to prevent crashes
         const HAND_CONNECTIONS = [
             [0, 1], [1, 2], [2, 3], [3, 4], 
             [0, 5], [5, 6], [6, 7], [7, 8], 
@@ -365,86 +353,34 @@
             [13, 17], [0, 17], [17, 18], [18, 19], [19, 20]
         ];
 
-        // Particle System Class
         class Particle {
-            constructor() {
-                this.reset();
-            }
-
-            reset() {
-                this.active = false;
-                this.x = 0;
-                this.y = 0;
-                this.vx = 0;
-                this.vy = 0;
-                this.life = 0;
-                this.decay = 0;
-                this.color = '';
-                this.size = 0;
-                this.wobble = 0; // Random phase shift for wave motion
-            }
-
-            spawn(x, y) {
+            constructor(x, y) {
                 this.x = x;
                 this.y = y;
-                
-                // Fluid/Bubble Physics Update:
-                // 1. Slow upward buoyancy (constant negative Y)
-                this.vy = -(Math.random() * 1.5 + 0.5); 
-                
-                // 2. Reduced chaos/sparks: Very small initial lateral drift
-                this.vx = (Math.random() - 0.5) * 0.5;
-                
-                // 3. Wobble Phase
-                this.wobble = Math.random() * Math.PI * 2;
-                
+                this.vx = (Math.random() - 0.5) * 1.5;
+                this.vy = (Math.random() - 1.5) * 1.5; 
                 this.life = 1.0;
-                // Slower decay for more "fluid" persistence
-                this.decay = Math.random() * 0.01 + 0.005;
-                this.active = true;
+                this.decay = Math.random() * 0.02 + 0.01;
                 
-                // Color Palette
                 const rand = Math.random();
                 let colorBase;
-                if (rand < 0.50) {
-                    colorBase = "254, 246, 227"; // #FEF6E3 Cream
-                } else if (rand < 0.70) {
-                    colorBase = "239, 148, 32";  // #EF9420 Orange
-                } else if (rand < 0.90) {
-                    colorBase = "245, 107, 153"; // #F56B99 Pink
-                } else {
-                    colorBase = "125, 166, 218"; // #7DA6DA Blue
-                }
+                if (rand < 0.50) colorBase = "254, 246, 227"; 
+                else if (rand < 0.70) colorBase = "239, 148, 32";
+                else if (rand < 0.90) colorBase = "245, 107, 153";
+                else colorBase = "125, 166, 218";
 
                 this.color = `rgba(${colorBase},`;
-                // Start slightly larger to look like bubbles
-                this.size = Math.random() * 5 + 3;
+                this.size = Math.random() * 4 + 1;
             }
 
             update() {
-                if (!this.active) return;
-                
-                // Fluid Motion: Sine wave oscillation on X axis
-                // As life decreases, 'time' increases, creating the curve
-                const time = (1.0 - this.life) * 8; 
-                const oscillation = Math.sin(time + this.wobble) * 0.5;
-
-                this.x += this.vx + oscillation;
+                this.x += this.vx;
                 this.y += this.vy;
-                
                 this.life -= this.decay;
-                
-                // Slow fade out instead of fast shrink
-                this.size *= 0.99; 
-
-                if (this.life <= 0) {
-                    this.active = false;
-                }
+                this.size *= 0.95; 
             }
 
             draw(ctx) {
-                if (!this.active) return;
-                // Alpha is tied to life, creating a smooth fade out
                 ctx.fillStyle = this.color + this.life + ')';
                 ctx.beginPath();
                 ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
@@ -452,93 +388,116 @@
             }
         }
 
-        // Initialize Pool
-        for (let i = 0; i < MAX_PARTICLES; i++) {
-            particlePool.push(new Particle());
-        }
-
-        // Ring Buffer Spawn: Always spawn, overwriting oldest if full
-        // This guarantees O(1) performance and consistent particle flow
-        function spawnParticle(x, y) {
-            const p = particlePool[poolIndex];
-            p.spawn(x, y);
-            poolIndex = (poolIndex + 1) % MAX_PARTICLES;
-        }
-
-        // Content Database
+        // Updated Educational Database
         const gestureData = {
-            "None": { icon: "", title: "", desc: "" },
+            "None": { icon: "", title: "", origin: "", desc: "" },
+            
             "Closed_Fist": {
                 icon: "✊",
-                title: "Strength",
-                desc: "A closed form holds potential. It represents solidarity, determination, and the power within."
+                title: "Raised Fist",
+                origin: "Europe",
+                desc: "Originating in European labor movements, it symbolizes solidarity and resistance. Today, it is widely recognized as a gesture of protest, unity, and empowerment."
             },
             "Open_Palm": {
                 icon: "✋",
-                title: "Openness",
-                desc: "To open one's hand is to release control. It is the universal sign of greeting, honesty, and peace."
+                title: "Palm Out (Stop)",
+                origin: "Ancient Greece / Rome",
+                desc: "Used since ancient times to signal warning or refusal, it is now standard in traffic control. Today, it is universally recognized as a sign to stop or show caution."
             },
             "Pointing_Up": {
                 icon: "☝️",
-                title: "Direction",
-                desc: "A singular focus towards the heavens. It asks a question or highlights a truth above."
+                title: "Pointing Up",
+                origin: "Universal",
+                desc: "A fundamental human gesture used to draw attention upwards. It is commonly used to ask a question, signal direction, or emphasize a point."
             },
             "Thumb_Down": {
                 icon: "👎",
-                title: "Dissent",
-                desc: "A judgment passed. It signifies disagreement, a turning away from the current path."
+                title: "Thumbs Down",
+                origin: "Ancient Rome",
+                desc: "Associated with Roman gladiatorial games indicating disapproval. Today, it universally signifies disagreement, disapproval, or a negative response."
             },
             "Thumb_Up": {
                 icon: "👍",
-                title: "Accord",
-                desc: "Harmony with the situation. A simple gesture of approval, connection, and positivity."
+                title: "Thumbs Up",
+                origin: "Ancient Rome",
+                desc: "Rooted in ancient Rome and widely adopted in the 20th century. Today, it is a globally recognized gesture for positivity, approval, and encouragement."
             },
             "Victory": {
                 icon: "✌️",
-                title: "Peace",
-                desc: "The dual path. Whether victory or peace, it represents triumph over conflict."
+                title: "Peace Sign",
+                origin: "Belgium",
+                desc: "Originating as a WWII resistance symbol, it was later embraced by anti-war activists. Today, it is a global gesture for optimism, celebration, and solidarity."
             },
             "ILoveYou": {
                 icon: "🤟",
-                title: "Affection",
-                desc: "The language of the heart made visible. A combination of letters that forms a universal bond."
+                title: "I Love You",
+                origin: "USA (ASL)",
+                desc: "Originating from American Sign Language, it combines the letters I, L, and Y. Today, it is recognized globally as a gesture expressing love and affection."
+            },
+            "Handshake": {
+                icon: "🤝",
+                title: "Handshake",
+                origin: "Ancient Greece / Rome",
+                desc: "Dates back to ancient civilizations symbolizing peace and trust. Today, it remains a widely recognized gesture of greeting, respect, and mutual agreement."
+            },
+            "OK": {
+                icon: "👌",
+                title: "OK Sign",
+                origin: "USA",
+                desc: "Rooted in the 1839 U.S. abbreviation for 'all correct,' it signals approval. Today, it generally means agreement, though it carries offensive meanings in some regions."
+            },
+            "Rock": {
+                icon: "🤘",
+                title: "Sign of the Horns",
+                origin: "Mediterranean",
+                desc: "Originally a ward against the 'evil eye,' it became a rock music staple in the 1970s. Today, it signifies energy, rebellion, and musical passion."
+            },
+            "Three": {
+                icon: "3️⃣",
+                title: "Three",
+                origin: "Universal",
+                desc: "A standard counting gesture used to represent the number three. It represents a specific quantity or the concept of a trinity."
+            },
+            "Four": {
+                icon: "4️⃣",
+                title: "Four",
+                origin: "Universal",
+                desc: "A standard counting gesture used to represent the number four. It represents stability and a specific quantity in visual communication."
+            },
+             "Shaka": {
+                icon: "🤙",
+                title: "Shaka",
+                origin: "Hawaii",
+                desc: "Originating in Hawaii as a symbol of the 'aloha spirit,' it spread through surf culture. Today, it signals friendliness, gratitude, and relaxed positivity."
+            },
+            "Finger_Gun": {
+                icon: "👉",
+                title: "Finger Gun",
+                origin: "USA",
+                desc: "Emerging in 20th-century Western pop culture, it mimics a gun as a playful sign. Today, it signals friendliness or joking intent, though context is crucial."
+            },
+            "Fist_Bump": {
+                icon: "👊",
+                title: "Fist Bump",
+                origin: "USA",
+                desc: "Originating in the late 20th century as a hygienic alternative to the handshake. Today, it is a gesture of camaraderie, respect, and friendly acknowledgment."
+            },
+            "Finger_Crossed": {
+                icon: "🤞",
+                title: "Crossed Fingers",
+                origin: "Europe",
+                desc: "Originating in early Christianity to invoke protection and luck. Today, it is widely used to wish for hope or positive outcomes."
             }
         };
 
-        // Wake Lock to prevent screen sleeping
-        let wakeLock = null;
-        async function requestWakeLock() {
-            try {
-                if ('wakeLock' in navigator) {
-                    wakeLock = await navigator.wakeLock.request('screen');
-                    wakeLock.addEventListener('release', () => {
-                        console.log('Wake Lock released');
-                    });
-                }
-            } catch (err) {
-                console.log(`${err.name}, ${err.message}`);
-            }
-        }
-
-        // Handle visibility change to re-acquire wake lock
-        document.addEventListener('visibilitychange', async () => {
-            if (wakeLock !== null && document.visibilityState === 'visible') {
-                await requestWakeLock();
-            }
-        });
-
-        // Fullscreen Logic
         fullscreenBtn.addEventListener("click", () => {
             if (!document.fullscreenElement) {
-                document.documentElement.requestFullscreen().catch(err => {
-                    console.log(`Error: ${err.message}`);
-                });
+                document.documentElement.requestFullscreen().catch(err => {});
             } else {
                 if (document.exitFullscreen) document.exitFullscreen();
             }
         });
 
-        // 1. Initialize AI
         const createGestureRecognizer = async () => {
             try {
                 statusText.innerText = "Connecting to the Ether...";
@@ -552,7 +511,7 @@
                     baseOptions: {
                         modelAssetPath:
                             "https://storage.googleapis.com/mediapipe-models/gesture_recognizer/gesture_recognizer/float16/1/gesture_recognizer.task",
-                        delegate: "CPU" // CPU is safer for long-running kiosk sessions than GPU
+                        delegate: "CPU"
                     },
                     runningMode: runningMode,
                     numHands: 1
@@ -572,7 +531,6 @@
 
         createGestureRecognizer();
 
-        // 2. Enable Webcam
         const enableCam = () => {
             if (!gestureRecognizer) return;
 
@@ -586,10 +544,7 @@
 
             navigator.mediaDevices.getUserMedia(constraints).then((stream) => {
                 video.srcObject = stream;
-                video.addEventListener("loadeddata", () => {
-                    requestWakeLock();
-                    renderLoop();
-                });
+                video.addEventListener("loadeddata", predictWebcam);
                 overlay.style.display = "none";
                 isWebcamActive = true;
             }).catch((err) => {
@@ -599,127 +554,216 @@
 
         enableBtn.addEventListener("click", enableCam);
 
-        // 3. Render Loop (60 FPS)
-        function renderLoop() {
-            if (!isWebcamActive) return;
+        // --- GEOMETRIC GESTURE LOGIC ---
+        function calculateFingerStates(landmarks) {
+            // Finger Tip Indices: 8 (Index), 12 (Middle), 16 (Ring), 20 (Pinky)
+            // Finger PIP Indices (Knuckles): 6, 10, 14, 18
+            const tips = [8, 12, 16, 20];
+            const pips = [6, 10, 14, 18];
+            const extended = [];
+            
+            // Wrist (0) is anchor. If distance(Wrist, Tip) > distance(Wrist, PIP), finger is extended
+            const wrist = landmarks[0];
+            for (let i = 0; i < 4; i++) {
+                const tip = landmarks[tips[i]];
+                const pip = landmarks[pips[i]];
+                
+                const distTip = Math.hypot(tip.x - wrist.x, tip.y - wrist.y);
+                const distPip = Math.hypot(pip.x - wrist.x, pip.y - wrist.y);
+                
+                extended.push(distTip > distPip); 
+            }
+            
+            // Thumb Check: Tip (4), IP (3), Pinky MCP (17) as anchor
+            const thumbTip = landmarks[4];
+            const thumbIP = landmarks[3];
+            const pinkyMCP = landmarks[17];
+            
+            const distThumbTip = Math.hypot(thumbTip.x - pinkyMCP.x, thumbTip.y - pinkyMCP.y);
+            const distThumbIP = Math.hypot(thumbIP.x - pinkyMCP.x, thumbIP.y - pinkyMCP.y);
+            
+            const thumbUp = distThumbTip > distThumbIP;
 
-            // Ensure canvas size matches video
-            if (video.videoWidth > 0 && video.videoHeight > 0) {
-                if (canvasElement.width !== video.clientWidth || canvasElement.height !== video.clientHeight) {
-                    canvasElement.width = video.clientWidth;
-                    canvasElement.height = video.clientHeight;
+            return {
+                index: extended[0],
+                middle: extended[1],
+                ring: extended[2],
+                pinky: extended[3],
+                thumb: thumbUp
+            };
+        }
+        
+        function detectCustomGestures(landmarks, defaultCategory) {
+            const wrist = landmarks[0];
+            const thumbTip = landmarks[4];
+            const indexTip = landmarks[8];
+            const middleTip = landmarks[12];
+            
+            const states = calculateFingerStates(landmarks);
+            const numFingersUp = (states.index?1:0) + (states.middle?1:0) + (states.ring?1:0) + (states.pinky?1:0);
+            
+            // 1. HANDSHAKE (Rotated Open Palm)
+            if (defaultCategory === "Open_Palm" || defaultCategory === "None") {
+                const xDiff = Math.abs(indexTip.x - wrist.x);
+                const yDiff = Math.abs(indexTip.y - wrist.y);
+                if (xDiff > yDiff * 1.5 && numFingersUp >= 3) {
+                    return "Handshake";
+                }
+            }
+            
+            // 2. FIST BUMP (Rotated Closed Fist)
+            const indexMCP = landmarks[5];
+            const handIsHorizontal = Math.abs(indexMCP.x - wrist.x) > Math.abs(indexMCP.y - wrist.y) * 1.2;
+            
+            if (numFingersUp === 0) { 
+                 if (handIsHorizontal) {
+                     return "Fist_Bump";
+                 }
+            }
+            if ((defaultCategory === "Thumb_Up" || defaultCategory === "Thumb_Down" || defaultCategory === "Closed_Fist") && handIsHorizontal) {
+                const thumbYDiff = Math.abs(thumbTip.y - indexMCP.y);
+                if (thumbYDiff < 0.1) { 
+                    return "Fist_Bump";
                 }
             }
 
-            const now = Date.now();
-
-            // A. Run AI Inference (Throttled to 30 FPS for balance)
-            if (now - lastInferenceTime >= INFERENCE_INTERVAL_MS) {
-                runInference(now);
-                lastInferenceTime = now;
+            // 3. OK SIGN
+            const thumbIndexDist = Math.hypot(thumbTip.x - indexTip.x, thumbTip.y - indexTip.y);
+            if (thumbIndexDist < 0.08 && states.middle && states.ring && states.pinky && !states.index) {
+                return "OK";
             }
 
-            // B. Clear Canvas
-            canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+            // 4. ROCK / HORNS
+            if (states.index && !states.middle && !states.ring && states.pinky) {
+                return "Rock";
+            }
+            
+            // 5. SHAKA (Call Me)
+            if (!states.index && !states.middle && !states.ring && states.pinky && states.thumb) {
+                return "Shaka";
+            }
+            
+            // 6. FINGER GUN
+            if (states.thumb && states.index && !states.middle && !states.ring && !states.pinky) {
+                return "Finger_Gun";
+            }
+            
+            // 7. FINGER CROSSED (Hope)
+            if (states.index && states.middle && !states.ring && !states.pinky) {
+                const tipDist = Math.hypot(indexTip.x - middleTip.x, indexTip.y - middleTip.y);
+                const pipDist = Math.hypot(landmarks[6].x - landmarks[10].x, landmarks[6].y - landmarks[10].y);
+                
+                if (tipDist < 0.05 && tipDist < pipDist * 0.65) { 
+                    return "Finger_Crossed";
+                }
+            }
 
-            // C. Draw Scene & Spawn Particles (Runs at 60 FPS)
-            // Even if AI is 30 FPS, particles spawn 60 FPS for smooth trails
-            drawScene();
+            // 8. NUMBERS (Three, Four)
+            if (defaultCategory === "None" || defaultCategory === "Open_Palm") {
+                if (numFingersUp === 3) return "Three";
+                if (numFingersUp === 4 && !states.thumb) return "Four";
+            }
 
-            window.requestAnimationFrame(renderLoop);
+            return defaultCategory;
         }
 
-        // 4. Inference Logic (Heavy Lifting)
-        function runInference(timestamp) {
-            if (video.readyState < 2) return;
+
+        async function predictWebcam() {
+            if (runningMode === "IMAGE") {
+                runningMode = "VIDEO";
+                await gestureRecognizer.setOptions({ runningMode: "VIDEO" });
+            }
 
             try {
-                const results = gestureRecognizer.recognizeForVideo(video, timestamp);
-
-                // Update Logic State
-                if (results.landmarks && results.landmarks.length > 0) {
-                    lastLandmarks = results.landmarks[0];
-                    video.classList.add("dimmed");
-                    idlePrompt.classList.remove("visible");
-                } else {
-                    lastLandmarks = null;
-                    video.classList.remove("dimmed");
-                    idlePrompt.classList.add("visible");
-                }
-
-                // Update Text UI
-                if (results.gestures.length > 0) {
-                    const gesture = results.gestures[0][0];
-                    if (gesture.score > 0.4) { 
-                        updateUI(gesture.categoryName);
-                    } else {
-                        updateUI("None");
+                if (video.videoWidth > 0 && video.videoHeight > 0) {
+                    const displayWidth = video.clientWidth;
+                    const displayHeight = video.clientHeight;
+                    if (canvasElement.width !== displayWidth || canvasElement.height !== displayHeight) {
+                        canvasElement.width = displayWidth;
+                        canvasElement.height = displayHeight;
                     }
-                } else {
-                    updateUI("None");
-                }
-
-            } catch (err) {
-                console.error(err);
-            }
-        }
-
-        // 5. Drawing Logic (Visuals)
-        function drawScene() {
-            // Draw Skeleton & Spawn Particles (if hands present)
-            if (lastLandmarks) {
-                canvasCtx.save();
-                canvasCtx.strokeStyle = "#FEF6E3";
-                canvasCtx.lineWidth = 2;
-                canvasCtx.lineCap = "round";
-                canvasCtx.globalAlpha = 0.6; 
-
-                // Draw Connections
-                for (const connection of HAND_CONNECTIONS) {
-                    const start = lastLandmarks[connection[0]];
-                    const end = lastLandmarks[connection[1]];
-                    if (start && end) {
-                        canvasCtx.beginPath();
-                        canvasCtx.moveTo(start.x * canvasElement.width, start.y * canvasElement.height);
-                        canvasCtx.lineTo(end.x * canvasElement.width, end.y * canvasElement.height);
-                        canvasCtx.stroke();
-                    }
-                }
-                
-                // Draw Nodes & Spawn Particles
-                for (let i = 0; i < lastLandmarks.length; i++) {
-                    const x = lastLandmarks[i].x * canvasElement.width;
-                    const y = lastLandmarks[i].y * canvasElement.height;
                     
-                    // Draw Node
-                    canvasCtx.beginPath();
-                    canvasCtx.arc(x, y, 3, 0, 2 * Math.PI);
-                    canvasCtx.fillStyle = "#FEF6E3";
-                    canvasCtx.fill();
+                    let nowInMs = Date.now();
+                    if (video.currentTime !== lastVideoTime) {
+                        lastVideoTime = video.currentTime;
+                        
+                        const results = gestureRecognizer.recognizeForVideo(video, nowInMs);
 
-                    // Continuous Particle Stream (60 FPS)
-                    // Chance: 25% per frame per node
-                    if (Math.random() > 0.75) { 
-                        spawnParticle(x, y);
+                        canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+                        
+                        if (results.landmarks && results.landmarks.length > 0) {
+                            const landmarks = results.landmarks[0];
+                            
+                            video.classList.add("dimmed");
+                            idlePrompt.classList.remove("visible");
+
+                            canvasCtx.save();
+                            canvasCtx.strokeStyle = "#FEF6E3";
+                            canvasCtx.lineWidth = 2;
+                            canvasCtx.lineCap = "round";
+                            canvasCtx.globalAlpha = 0.6; 
+
+                            for (const connection of HAND_CONNECTIONS) {
+                                const start = landmarks[connection[0]];
+                                const end = landmarks[connection[1]];
+                                if (start && end) {
+                                    canvasCtx.beginPath();
+                                    canvasCtx.moveTo(start.x * canvasElement.width, start.y * canvasElement.height);
+                                    canvasCtx.lineTo(end.x * canvasElement.width, end.y * canvasElement.height);
+                                    canvasCtx.stroke();
+                                }
+                            }
+                            canvasCtx.restore();
+
+                            for (let i = 0; i < landmarks.length; i++) {
+                                const x = landmarks[i].x * canvasElement.width;
+                                const y = landmarks[i].y * canvasElement.height;
+
+                                canvasCtx.beginPath();
+                                canvasCtx.arc(x, y, 3, 0, 2 * Math.PI);
+                                canvasCtx.fillStyle = "#FEF6E3";
+                                canvasCtx.fill();
+
+                                if (Math.random() > 0.75) { 
+                                    particles.push(new Particle(x, y));
+                                }
+                            }
+                            
+                            let categoryName = "None";
+                            if (results.gestures.length > 0) {
+                                categoryName = results.gestures[0][0].categoryName;
+                            }
+                            
+                            categoryName = detectCustomGestures(landmarks, categoryName);
+                            
+                            updateUI(categoryName);
+
+                        } else {
+                            video.classList.remove("dimmed");
+                            idlePrompt.classList.add("visible");
+                            updateUI("None");
+                        }
+
+                        canvasCtx.globalCompositeOperation = 'lighter'; 
+                        for (let i = particles.length - 1; i >= 0; i--) {
+                            particles[i].update();
+                            particles[i].draw(canvasCtx);
+                            if (particles[i].life <= 0) particles.splice(i, 1);
+                        }
+                        canvasCtx.globalCompositeOperation = 'source-over'; 
                     }
                 }
-                canvasCtx.restore();
+            } catch (err) {
+                console.error("Frame processing error:", err);
             }
 
-            // Draw Particles (Always running, from Ring Buffer)
-            canvasCtx.globalCompositeOperation = 'lighter'; 
-            for (let i = 0; i < MAX_PARTICLES; i++) {
-                const p = particlePool[i];
-                if (p.active) {
-                    p.update();
-                    p.draw(canvasCtx);
-                }
+            if (isWebcamActive) {
+                window.requestAnimationFrame(predictWebcam);
             }
-            canvasCtx.globalCompositeOperation = 'source-over'; 
         }
 
-        // 6. UI Update
         let currentGesture = "None";
+        
         function updateUI(category) {
             if (category === currentGesture) return;
             currentGesture = category;
@@ -730,6 +774,7 @@
                 infoPanel.classList.remove("active");
             } else {
                 titleDisplay.innerText = data.title;
+                originDisplay.innerText = data.origin; // Update Origin
                 descDisplay.innerText = data.desc;
                 iconDisplay.innerText = data.icon;
                 infoPanel.classList.add("active");
